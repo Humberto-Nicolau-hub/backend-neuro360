@@ -1,7 +1,7 @@
 
 {
   "name": "neuro360-backend",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Backend NeuroMapa360",
   "main": "server.js",
   "scripts": {
