@@ -2,7 +2,6 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import OpenAI from "openai";
-
 import { createClient } from "@supabase/supabase-js";
 
 dotenv.config();
@@ -10,7 +9,6 @@ dotenv.config();
 const app = express();
 
 app.use(cors());
-
 app.use(express.json());
 
 const openai = new OpenAI({
@@ -22,18 +20,47 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY
 );
 
-function calcularNivel(emocao) {
-  const mapa = {
-    deprimido: 1,
-    desmotivado: 2,
-    triste: 3,
-    ansioso: 4,
-    estressado: 5,
-    procrastinador: 6,
-    feliz: 8,
-  };
+function detectarEmocao(texto) {
+  const t = texto.toLowerCase();
 
-  return mapa[emocao?.toLowerCase()] || 5;
+  if (
+    t.includes("ansiedade") ||
+    t.includes("ansioso") ||
+    t.includes("medo") ||
+    t.includes("pânico")
+  ) {
+    return {
+      emocao: "ansiedade",
+      intensidade: 8,
+    };
+  }
+
+  if (
+    t.includes("triste") ||
+    t.includes("depressão") ||
+    t.includes("sozinho")
+  ) {
+    return {
+      emocao: "tristeza",
+      intensidade: 9,
+    };
+  }
+
+  if (
+    t.includes("cansado") ||
+    t.includes("desmotivado") ||
+    t.includes("procrastinação")
+  ) {
+    return {
+      emocao: "desmotivacao",
+      intensidade: 6,
+    };
+  }
+
+  return {
+    emocao: "neutro",
+    intensidade: 3,
+  };
 }
 
 app.get("/", (req, res) => {
@@ -41,57 +68,19 @@ app.get("/", (req, res) => {
 });
 
 app.get("/admin-metricas", async (req, res) => {
-  try {
-    const { count: usuarios } =
-      await supabase
-        .from("profiles")
-        .select("*", {
-          count: "exact",
-          head: true,
-        });
+  const { count } = await supabase
+    .from("memoria_emocional")
+    .select("*", { count: "exact", head: true });
 
-    const { count: registros } =
-      await supabase
-        .from("registros_emocionais")
-        .select("*", {
-          count: "exact",
-          head: true,
-        });
-
-    const { count: ia } =
-      await supabase
-        .from("memoria_ia")
-        .select("*", {
-          count: "exact",
-          head: true,
-        });
-
-    res.json({
-      usuarios,
-      registros,
-      ia,
-      status: "online",
-    });
-
-  } catch (e) {
-
-    res.status(500).json({
-      erro: e.message,
-    });
-  }
+  res.json({
+    memoria_salva: count || 0,
+    status: "online",
+  });
 });
 
 app.post("/ia", async (req, res) => {
-
   try {
-
-    const {
-      mensagem,
-      emocao,
-      user_id,
-      modo,
-      modoProfundo,
-    } = req.body;
+    const { mensagem, user_id } = req.body;
 
     if (!mensagem) {
       return res.status(400).json({
@@ -99,116 +88,96 @@ app.post("/ia", async (req, res) => {
       });
     }
 
-    const { data: memoria } =
-      await supabase
-        .from("memoria_ia")
-        .select("*")
-        .eq("user_id", user_id)
-        .order("created_at", {
-          ascending: false,
-        })
-        .limit(5);
+    const emocaoDetectada = detectarEmocao(mensagem);
 
-    const contextoAnterior =
-      memoria
-        ?.map(
+    const { data: memorias } = await supabase
+      .from("memoria_emocional")
+      .select("*")
+      .eq("user_id", user_id || "anonimo")
+      .order("created_at", { ascending: false })
+      .limit(5);
+
+    let contextoMemoria = "";
+
+    if (memorias && memorias.length > 0) {
+      contextoMemoria = memorias
+        .map(
           (m) =>
-            `
-Usuário: ${m.mensagem_usuario}
-
-IA: ${m.resposta_ia}
-`
+            `Usuário: ${m.mensagem_usuario}\nIA: ${m.resposta_ia}\nEmoção: ${m.emocao}`
         )
-        .join("\n");
+        .join("\n\n");
+    }
 
     const promptSistema = `
-Você é a IA terapêutica NeuroMapa360.
+Você é a IA terapêutica do NeuroMapa360.
 
-Seu papel é oferecer:
-- apoio emocional
-- acolhimento
-- PNL terapêutica
-- reestruturação emocional
-- inteligência emocional
-- orientação neuro sistêmica
+Seu papel:
+- oferecer apoio emocional humano
+- utilizar linguagem acolhedora
+- aplicar princípios terapêuticos suaves
+- utilizar abordagem inspirada em PNL e terapia neuro sistêmica
+- nunca incentivar autolesão
+- nunca recomendar violência
+- nunca substituir profissionais de saúde
+- agir com empatia profunda
 
-IMPORTANTE:
-- nunca seja fria
-- nunca seja robótica
-- nunca use respostas curtas
-- fale de forma humana
-- use empatia
-- ajude emocionalmente
+Contexto emocional anterior:
+${contextoMemoria}
 
-Estado emocional atual:
-${emocao}
+Emoção atual detectada:
+${emocaoDetectada.emocao}
 
-Modo:
-${modo}
-
-Terapia profunda:
-${modoProfundo ? "ATIVADA" : "DESATIVADA"}
-
-Histórico emocional recente:
-${contextoAnterior}
+Intensidade emocional:
+${emocaoDetectada.intensidade}
 `;
 
-    const completion =
-      await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-
-        messages: [
-          {
-            role: "system",
-            content: promptSistema,
-          },
-
-          {
-            role: "user",
-            content: mensagem,
-          },
-        ],
-
-        temperature: 0.8,
-
-        max_tokens: 700,
-      });
-
-    const resposta =
-      completion.choices[0].message.content;
-
-    await supabase
-      .from("memoria_ia")
-      .insert([
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4.1-mini",
+      messages: [
         {
-          user_id,
-          emocao,
-          mensagem_usuario: mensagem,
-          resposta_ia: resposta,
-          nivel_emocional:
-            calcularNivel(emocao),
+          role: "system",
+          content: promptSistema,
         },
-      ]);
-
-    res.json({
-      resposta,
+        {
+          role: "user",
+          content: mensagem,
+        },
+      ],
+      temperature: 0.8,
+      max_tokens: 500,
     });
 
-  } catch (e) {
+    const respostaIA =
+      completion.choices[0].message.content ||
+      "Estou aqui para te apoiar.";
 
-    console.log(e);
+    await supabase.from("memoria_emocional").insert([
+      {
+        user_id: user_id || "anonimo",
+        mensagem_usuario: mensagem,
+        resposta_ia: respostaIA,
+        emocao: emocaoDetectada.emocao,
+        intensidade: emocaoDetectada.intensidade,
+      },
+    ]);
+
+    res.json({
+      resposta: respostaIA,
+      emocao: emocaoDetectada.emocao,
+      intensidade: emocaoDetectada.intensidade,
+      memoria_ativa: true,
+    });
+  } catch (error) {
+    console.error(error);
 
     res.status(500).json({
-      erro: e.message,
+      erro: "Erro interno IA",
     });
   }
 });
 
-const PORT =
-  process.env.PORT || 10000;
+const PORT = process.env.PORT || 10000;
 
 app.listen(PORT, () => {
-  console.log(
-    `Servidor rodando na porta ${PORT}`
-  );
+  console.log(`Servidor rodando na porta ${PORT}`);
 });
