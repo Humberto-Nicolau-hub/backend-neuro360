@@ -13,6 +13,8 @@ import calcularScoreEmocional from "./score_emocional.js";
 
 import gerarHeatmapEmocional from "./heatmap_emocional.js";
 
+import gerarRecomendacoes from "./recomendacoes_automaticas.js";
+
 dotenv.config();
 
 const app = express();
@@ -198,6 +200,16 @@ app.post("/ia", async (req, res) => {
       );
 
     // =========================
+    // RECOMENDAÇÕES
+    // =========================
+
+    const recomendacoes =
+      gerarRecomendacoes(
+        scoreData,
+        emocaoData
+      );
+
+    // =========================
     // CONTEXTO ANTERIOR
     // =========================
 
@@ -329,6 +341,9 @@ ${contextoAnterior}
 
 PROTOCOLO TERAPÊUTICO:
 ${respostaPNL}
+
+RECOMENDAÇÕES:
+${JSON.stringify(recomendacoes)}
 `;
 
     // =========================
@@ -341,7 +356,7 @@ ${respostaPNL}
 
         temperature: 0.9,
 
-        max_tokens: 700,
+        max_tokens: 800,
 
         messages: [
           {
@@ -403,6 +418,8 @@ ${respostaPNL}
 
       heatmap:
         heatmapData,
+
+      recomendacoes,
 
       memoria_ativa:
         memoria?.length > 0,
