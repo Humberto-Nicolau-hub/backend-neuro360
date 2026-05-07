@@ -19,6 +19,8 @@ import gerarIntervencaoAutomatica from "./intervencoes_automaticas.js";
 
 import gerarTrilhaTerapêutica from "./trilhas_terapeuticas.js";
 
+import verificarPlano from "./controle_premium.js";
+
 dotenv.config();
 
 const app = express();
@@ -162,14 +164,7 @@ app.post("/ia", async (req, res) => {
     }
 
     // =========================
-    // DETECÇÃO EMOCIONAL
-    // =========================
-
-    const emocaoData =
-      detectarEmocao(mensagem);
-
-    // =========================
-    // MEMÓRIA
+    // BUSCA MEMÓRIAS
     // =========================
 
     const { data: memoria } =
@@ -182,8 +177,68 @@ app.post("/ia", async (req, res) => {
         )
         .order("created_at", {
           ascending: false,
-        })
-        .limit(30);
+        });
+
+    // =========================
+    // USUÁRIO
+    // =========================
+
+    const { data: usuario } =
+      await supabase
+        .from("usuarios")
+        .select("*")
+        .eq(
+          "id",
+          user_id || "anonimo"
+        )
+        .single();
+
+    // =========================
+    // CONTROLE PREMIUM
+    // =========================
+
+    const plano =
+      verificarPlano(
+        usuario || {},
+        memoria?.length || 0
+      );
+
+    // =========================
+    // LIMITE FREE
+    // =========================
+
+    if (
+      plano.limiteAtingido
+    ) {
+
+      return res.json({
+        premium: false,
+
+        limite:
+          true,
+
+        resposta: `
+Você atingiu o limite do plano gratuito do NeuroMapa360.
+
+O plano premium libera:
+✅ sessões ilimitadas
+✅ memória emocional avançada
+✅ trilhas terapêuticas premium
+✅ intervenções inteligentes
+✅ heatmap emocional
+✅ acompanhamento emocional contínuo
+
+Continue sua evolução emocional no plano premium.
+        `,
+      });
+    }
+
+    // =========================
+    // DETECÇÃO EMOCIONAL
+    // =========================
+
+    const emocaoData =
+      detectarEmocao(mensagem);
 
     // =========================
     // SCORE
@@ -224,7 +279,7 @@ app.post("/ia", async (req, res) => {
       );
 
     // =========================
-    // TRILHA TERAPÊUTICA
+    // TRILHAS
     // =========================
 
     const trilha =
@@ -234,7 +289,7 @@ app.post("/ia", async (req, res) => {
       );
 
     // =========================
-    // CONTEXTO ANTERIOR
+    // CONTEXTO
     // =========================
 
     let contextoAnterior = "";
@@ -330,6 +385,9 @@ Você deve:
 - gerar segurança emocional
 - parecer humana
 - criar continuidade terapêutica
+
+PLANO:
+${plano.plano}
 
 PERFIL EMOCIONAL:
 
@@ -438,6 +496,15 @@ ${JSON.stringify(trilha)}
     // =========================
 
     res.json({
+      premium:
+        plano.premium,
+
+      plano:
+        plano.plano,
+
+      restante:
+        plano.restante,
+
       resposta,
 
       emocao_detectada:
