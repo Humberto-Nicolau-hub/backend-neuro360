@@ -9,6 +9,8 @@ import detectarEmocao from "./detector_emocional.js";
 
 import gerarRespostaPNL from "./protocolos_pnl.js";
 
+import calcularScoreEmocional from "./score_emocional.js";
+
 dotenv.config();
 
 const app = express();
@@ -50,18 +52,15 @@ app.get("/admin/dashboard", async (req, res) => {
 
   try {
 
-    const { count: totalRegistros } =
-      await supabase
-        .from("memoria_emocional")
-        .select("*", {
-          count: "exact",
-          head: true,
-        });
-
     const { data: memorias } =
       await supabase
         .from("memoria_emocional")
         .select("*");
+
+    const scoreData =
+      calcularScoreEmocional(
+        memorias || []
+      );
 
     const usuariosUnicos = [
       ...new Set(
@@ -75,29 +74,6 @@ app.get("/admin/dashboard", async (req, res) => {
       usuariosUnicos.length * 0.25
     );
 
-    let emocaoDominante =
-      "equilibrio";
-
-    let mapa = {
-      ansiedade: 0,
-      tristeza: 0,
-      culpa: 0,
-      procrastinacao: 0,
-      raiva: 0,
-    };
-
-    memorias?.forEach((m) => {
-
-      if (mapa[m.emocao] !== undefined) {
-        mapa[m.emocao]++;
-      }
-    });
-
-    emocaoDominante =
-      Object.keys(mapa).reduce((a, b) =>
-        mapa[a] > mapa[b] ? a : b
-      );
-
     res.json({
       totalUsuarios:
         usuariosUnicos.length || 0,
@@ -105,10 +81,10 @@ app.get("/admin/dashboard", async (req, res) => {
       premium,
 
       totalRegistros:
-        totalRegistros || 0,
+        memorias?.length || 0,
 
       totalMemorias:
-        totalRegistros || 0,
+        memorias?.length || 0,
 
       conversao:
         usuariosUnicos.length > 0
@@ -121,7 +97,17 @@ app.get("/admin/dashboard", async (req, res) => {
 
       receita: premium * 47,
 
-      emocaoDominante,
+      emocaoDominante:
+        scoreData.emocaoDominante,
+
+      scoreEmocional:
+        scoreData.score,
+
+      tendencia:
+        scoreData.tendencia,
+
+      nivel:
+        scoreData.nivel,
     });
 
   } catch (error) {
@@ -149,6 +135,7 @@ app.post("/ia", async (req, res) => {
     } = req.body;
 
     if (!mensagem) {
+
       return res.status(400).json({
         erro:
           "Mensagem obrigatória",
@@ -163,7 +150,7 @@ app.post("/ia", async (req, res) => {
       detectarEmocao(mensagem);
 
     // =========================
-    // MEMÓRIA EMOCIONAL
+    // BUSCA MEMÓRIA
     // =========================
 
     const { data: memoria } =
@@ -177,10 +164,19 @@ app.post("/ia", async (req, res) => {
         .order("created_at", {
           ascending: false,
         })
-        .limit(5);
+        .limit(20);
 
     // =========================
-    // CONTEXTO ANTERIOR
+    // SCORE EMOCIONAL
+    // =========================
+
+    const scoreData =
+      calcularScoreEmocional(
+        memoria || []
+      );
+
+    // =========================
+    // CONTEXTO
     // =========================
 
     let contextoAnterior = "";
@@ -192,6 +188,7 @@ app.post("/ia", async (req, res) => {
 
       contextoAnterior =
         memoria
+          .slice(0, 5)
           .map(
             (m) =>
               `
@@ -209,7 +206,7 @@ ${m.emocao}
     }
 
     // =========================
-    // PROTOCOLO TERAPÊUTICO
+    // PROTOCOLO PNL
     // =========================
 
     const respostaPNL =
@@ -265,49 +262,47 @@ Você utiliza:
 - terapia neuro sistêmica
 - acolhimento emocional
 - escuta ativa
-- reestruturação emocional
 - linguagem humana profunda
-- princípios do método Renascimento da Mente
+- método Renascimento da Mente
 
 Você deve:
-- responder de forma acolhedora
-- evitar respostas genéricas
-- ajudar emocionalmente
-- gerar segurança emocional
-- conduzir emocionalmente
-- parecer humana
 - aprofundar emocionalmente
+- responder com empatia
+- evitar respostas genéricas
+- gerar segurança emocional
+- parecer humana
+- criar continuidade terapêutica
 
-Você NÃO deve:
-- ser fria
-- responder curto
-- parecer robótica
-- julgar
-- gerar dependência emocional
+PERFIL EMOCIONAL:
 
-DADOS EMOCIONAIS:
+Score emocional:
+${scoreData.score}/100
 
-Emoção:
+Nível emocional:
+${scoreData.nivel}
+
+Tendência emocional:
+${scoreData.tendencia}
+
+Emoção dominante:
+${scoreData.emocaoDominante}
+
+EMOÇÃO ATUAL:
 ${emocaoData.emocao}
 
-Categoria:
-${emocaoData.categoria}
-
-Intensidade:
+INTENSIDADE:
 ${emocaoData.intensidade}/10
 
-Vibração:
-${emocaoData.vibracao}
+CATEGORIA:
+${emocaoData.categoria}
 
-Gatilhos:
-${emocaoData.gatilhos.join(
-  ", "
-)}
+GATILHOS:
+${emocaoData.gatilhos.join(", ")}
 
 CONTEXTO ANTERIOR:
 ${contextoAnterior}
 
-PROTOCOLO TERAPÊUTICO BASE:
+PROTOCOLO TERAPÊUTICO:
 ${respostaPNL}
 `;
 
@@ -369,7 +364,7 @@ ${respostaPNL}
       ]);
 
     // =========================
-    // RESPOSTA FINAL
+    // RETORNO FINAL
     // =========================
 
     res.json({
@@ -377,6 +372,9 @@ ${respostaPNL}
 
       emocao_detectada:
         emocaoData,
+
+      perfil_emocional:
+        scoreData,
 
       memoria_ativa:
         memoria?.length > 0,
