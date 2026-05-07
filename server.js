@@ -11,6 +11,8 @@ import gerarRespostaPNL from "./protocolos_pnl.js";
 
 import calcularScoreEmocional from "./score_emocional.js";
 
+import gerarHeatmapEmocional from "./heatmap_emocional.js";
+
 dotenv.config();
 
 const app = express();
@@ -62,6 +64,11 @@ app.get("/admin/dashboard", async (req, res) => {
         memorias || []
       );
 
+    const heatmapData =
+      gerarHeatmapEmocional(
+        memorias || []
+      );
+
     const usuariosUnicos = [
       ...new Set(
         memorias?.map(
@@ -108,6 +115,12 @@ app.get("/admin/dashboard", async (req, res) => {
 
       nivel:
         scoreData.nivel,
+
+      periodoCritico:
+        heatmapData.periodoCritico,
+
+      heatmap:
+        heatmapData.heatmap,
     });
 
   } catch (error) {
@@ -150,7 +163,7 @@ app.post("/ia", async (req, res) => {
       detectarEmocao(mensagem);
 
     // =========================
-    // BUSCA MEMÓRIA
+    // MEMÓRIA EMOCIONAL
     // =========================
 
     const { data: memoria } =
@@ -164,7 +177,7 @@ app.post("/ia", async (req, res) => {
         .order("created_at", {
           ascending: false,
         })
-        .limit(20);
+        .limit(30);
 
     // =========================
     // SCORE EMOCIONAL
@@ -176,7 +189,16 @@ app.post("/ia", async (req, res) => {
       );
 
     // =========================
-    // CONTEXTO
+    // HEATMAP
+    // =========================
+
+    const heatmapData =
+      gerarHeatmapEmocional(
+        memoria || []
+      );
+
+    // =========================
+    // CONTEXTO ANTERIOR
     // =========================
 
     let contextoAnterior = "";
@@ -287,6 +309,9 @@ ${scoreData.tendencia}
 Emoção dominante:
 ${scoreData.emocaoDominante}
 
+Período crítico:
+${heatmapData.periodoCritico}
+
 EMOÇÃO ATUAL:
 ${emocaoData.emocao}
 
@@ -314,7 +339,7 @@ ${respostaPNL}
       await openai.chat.completions.create({
         model: "gpt-4o-mini",
 
-        temperature: 0.85,
+        temperature: 0.9,
 
         max_tokens: 700,
 
@@ -364,7 +389,7 @@ ${respostaPNL}
       ]);
 
     // =========================
-    // RETORNO FINAL
+    // RESPOSTA FINAL
     // =========================
 
     res.json({
@@ -375,6 +400,9 @@ ${respostaPNL}
 
       perfil_emocional:
         scoreData,
+
+      heatmap:
+        heatmapData,
 
       memoria_ativa:
         memoria?.length > 0,
