@@ -17,6 +17,8 @@ import gerarRecomendacoes from "./recomendacoes_automaticas.js";
 
 import gerarIntervencaoAutomatica from "./intervencoes_automaticas.js";
 
+import gerarTrilhaTerapêutica from "./trilhas_terapeuticas.js";
+
 dotenv.config();
 
 const app = express();
@@ -167,7 +169,7 @@ app.post("/ia", async (req, res) => {
       detectarEmocao(mensagem);
 
     // =========================
-    // MEMÓRIA EMOCIONAL
+    // MEMÓRIA
     // =========================
 
     const { data: memoria } =
@@ -184,7 +186,7 @@ app.post("/ia", async (req, res) => {
         .limit(30);
 
     // =========================
-    // SCORE EMOCIONAL
+    // SCORE
     // =========================
 
     const scoreData =
@@ -219,6 +221,16 @@ app.post("/ia", async (req, res) => {
       gerarIntervencaoAutomatica(
         scoreData,
         heatmapData
+      );
+
+    // =========================
+    // TRILHA TERAPÊUTICA
+    // =========================
+
+    const trilha =
+      gerarTrilhaTerapêutica(
+        scoreData,
+        emocaoData
       );
 
     // =========================
@@ -359,6 +371,9 @@ ${JSON.stringify(recomendacoes)}
 
 INTERVENÇÕES:
 ${JSON.stringify(intervencoes)}
+
+TRILHA TERAPÊUTICA:
+${JSON.stringify(trilha)}
 `;
 
     // =========================
@@ -371,7 +386,7 @@ ${JSON.stringify(intervencoes)}
 
         temperature: 0.9,
 
-        max_tokens: 900,
+        max_tokens: 1000,
 
         messages: [
           {
@@ -437,6 +452,8 @@ ${JSON.stringify(intervencoes)}
       recomendacoes,
 
       intervencoes,
+
+      trilha,
 
       memoria_ativa:
         memoria?.length > 0,
