@@ -21,6 +21,8 @@ import gerarTrilhaTerapêutica from "./trilhas_terapeuticas.js";
 
 import verificarPlano from "./controle_premium.js";
 
+import analisarArquiteturaCognitiva from "./neuro_arquitetura_cognitiva.js";
+
 dotenv.config();
 
 const app = express();
@@ -241,6 +243,13 @@ Continue sua evolução emocional no plano premium.
       detectarEmocao(mensagem);
 
     // =========================
+    // ARQUITETURA COGNITIVA
+    // =========================
+
+    const arquiteturaCognitiva =
+      analisarArquiteturaCognitiva(mensagem);
+
+    // =========================
     // SCORE
     // =========================
 
@@ -370,24 +379,85 @@ Estou aqui com você.
     const promptSistema = `
 Você é a IA terapêutica NeuroMapa360.
 
-Você utiliza:
-- PNL terapêutica
-- terapia neuro sistêmica
-- acolhimento emocional
-- escuta ativa
-- linguagem humana profunda
-- método Renascimento da Mente
+Você atua como:
+- terapeuta neuro sistêmico
+- especialista em PNL
+- especialista em reestruturação emocional
+- mentor emocional profundo
+- inteligência emocional terapêutica
 
-Você deve:
-- aprofundar emocionalmente
-- responder com empatia
-- evitar respostas genéricas
-- gerar segurança emocional
-- parecer humana
-- criar continuidade terapêutica
+REGRAS ABSOLUTAS:
+
+1. NUNCA responda genericamente.
+
+2. SEMPRE aprofundar:
+- emoção
+- crença
+- sabotador
+- padrão mental
+- ferida emocional
+
+3. Use:
+- acolhimento humano
+- profundidade emocional
+- perguntas inteligentes
+- PNL terapêutica
+- reestruturação cognitiva
+- consciência emocional
+- linguagem calorosa
+
+4. NÃO repetir respostas.
+
+5. NÃO parecer robótico.
+
+6. NÃO responder curto demais.
+
+7. O usuário precisa sentir:
+- compreensão
+- profundidade
+- conexão
+- acolhimento
+- expansão de consciência
 
 PLANO:
 ${plano.plano}
+
+ANÁLISE EMOCIONAL:
+
+Emoção:
+${emocaoData.emocao}
+
+Intensidade:
+${emocaoData.intensidade}
+
+Categoria:
+${emocaoData.categoria}
+
+Vibração:
+${emocaoData.vibracao}
+
+Gatilhos:
+${emocaoData.gatilhos.join(", ")}
+
+ANÁLISE COGNITIVA:
+
+Crenças:
+${arquiteturaCognitiva.crencas.join(", ")}
+
+Sabotadores:
+${arquiteturaCognitiva.sabotadores.join(", ")}
+
+Distorções:
+${arquiteturaCognitiva.distorcoes.join(", ")}
+
+Feridas:
+${arquiteturaCognitiva.feridas.join(", ")}
+
+Padrão mental:
+${arquiteturaCognitiva.padraoMental.join(", ")}
+
+Resumo terapêutico:
+${arquiteturaCognitiva.resumoTerapeutico}
 
 PERFIL EMOCIONAL:
 
@@ -406,22 +476,10 @@ ${scoreData.emocaoDominante}
 Período crítico:
 ${heatmapData.periodoCritico}
 
-EMOÇÃO ATUAL:
-${emocaoData.emocao}
-
-INTENSIDADE:
-${emocaoData.intensidade}/10
-
-CATEGORIA:
-${emocaoData.categoria}
-
-GATILHOS:
-${emocaoData.gatilhos.join(", ")}
-
-CONTEXTO ANTERIOR:
+CONTEXTO TERAPÊUTICO:
 ${contextoAnterior}
 
-PROTOCOLO TERAPÊUTICO:
+PROTOCOLO PNL:
 ${respostaPNL}
 
 RECOMENDAÇÕES:
@@ -432,8 +490,19 @@ ${JSON.stringify(intervencoes)}
 
 TRILHA TERAPÊUTICA:
 ${JSON.stringify(trilha)}
-`;
 
+MEMÓRIA TERAPÊUTICA:
+A IA deve lembrar emoções anteriores e criar continuidade emocional progressiva.
+
+Responda de forma:
+- profunda
+- humana
+- emocional
+- inteligente
+- terapêutica
+- transformadora
+`;
+    
     // =========================
     // OPENAI
     // =========================
@@ -442,9 +511,9 @@ ${JSON.stringify(trilha)}
       await openai.chat.completions.create({
         model: "gpt-4o-mini",
 
-        temperature: 0.9,
+        temperature: 0.95,
 
-        max_tokens: 1000,
+        max_tokens: 1200,
 
         messages: [
           {
@@ -509,6 +578,9 @@ ${JSON.stringify(trilha)}
 
       emocao_detectada:
         emocaoData,
+
+      arquitetura_cognitiva:
+        arquiteturaCognitiva,
 
       perfil_emocional:
         scoreData,
