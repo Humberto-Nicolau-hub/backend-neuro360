@@ -131,7 +131,9 @@ function detectarEmocao(texto = "") {
     emocaoDetectada.intensidade += 2;
   }
 
+  // =========================
   // LIMITADOR
+  // =========================
 
   if (emocaoDetectada.intensidade > 10) {
     emocaoDetectada.intensidade = 10;
@@ -140,4 +142,8 @@ function detectarEmocao(texto = "") {
   return emocaoDetectada;
 }
 
-module.exports = detectarEmocao;
+// =========================
+// EXPORT ES MODULE
+// =========================
+
+export default detectarEmocao;
