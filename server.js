@@ -15,6 +15,8 @@ import gerarHeatmapEmocional from "./heatmap_emocional.js";
 
 import gerarRecomendacoes from "./recomendacoes_automaticas.js";
 
+import gerarIntervencaoAutomatica from "./intervencoes_automaticas.js";
+
 dotenv.config();
 
 const app = express();
@@ -210,6 +212,16 @@ app.post("/ia", async (req, res) => {
       );
 
     // =========================
+    // INTERVENÇÕES
+    // =========================
+
+    const intervencoes =
+      gerarIntervencaoAutomatica(
+        scoreData,
+        heatmapData
+      );
+
+    // =========================
     // CONTEXTO ANTERIOR
     // =========================
 
@@ -344,6 +356,9 @@ ${respostaPNL}
 
 RECOMENDAÇÕES:
 ${JSON.stringify(recomendacoes)}
+
+INTERVENÇÕES:
+${JSON.stringify(intervencoes)}
 `;
 
     // =========================
@@ -356,7 +371,7 @@ ${JSON.stringify(recomendacoes)}
 
         temperature: 0.9,
 
-        max_tokens: 800,
+        max_tokens: 900,
 
         messages: [
           {
@@ -420,6 +435,8 @@ ${JSON.stringify(recomendacoes)}
         heatmapData,
 
       recomendacoes,
+
+      intervencoes,
 
       memoria_ativa:
         memoria?.length > 0,
